@@ -162,3 +162,25 @@ define <vscale x 1 x i32> @udiv_demanded3(<vscale x 1 x i32> %a) {
   %u = udiv <vscale x 1 x i32> %o, shufflevector (<vscale x 1 x i32> insertelement (<vscale x 1 x i32> poison, i32 12, i32 0), <vscale x 1 x i32> poison, <vscale x 1 x i32> zeroinitializer)
   ret <vscale x 1 x i32> %u
 }
+
+define i32 @udiv_select_neg(i32 %x, i1 %y) nounwind {
+; CHECK-LABEL: @udiv_select_neg(
+; CHECK-NEXT:    [[Z:%.*]] = select i1 [[Y:%.*]], i32 -1, i32 -2
+; CHECK-NEXT:    [[R:%.*]] = udiv i32 [[X:%.*]], [[Z]]
+; CHECK-NEXT:    ret i32 [[R]]
+;
+  %z = select i1 %y, i32 -1,i32 -2
+  %r = udiv i32 %x, %z
+  ret i32 %r
+}
+
+define i32 @udiv_xor_neg(i32 %x, i32 %y) nounwind {
+; CHECK-LABEL: @udiv_xor_neg(
+; CHECK-NEXT:    [[Z:%.*]] = or i32 [[Y:%.*]], -2147483648
+; CHECK-NEXT:    [[R:%.*]] = udiv i32 [[X:%.*]], [[Z]]
+; CHECK-NEXT:    ret i32 [[R]]
+;
+  %z = or i32 2147483648, %y
+  %r = udiv i32 %x, %z
+  ret i32 %r
+}
