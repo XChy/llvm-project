@@ -166,7 +166,8 @@ define <vscale x 1 x i32> @udiv_demanded3(<vscale x 1 x i32> %a) {
 define i32 @udiv_select_neg(i32 %x, i1 %y) nounwind {
 ; CHECK-LABEL: @udiv_select_neg(
 ; CHECK-NEXT:    [[Z:%.*]] = select i1 [[Y:%.*]], i32 -1, i32 -2
-; CHECK-NEXT:    [[R:%.*]] = udiv i32 [[X:%.*]], [[Z]]
+; CHECK-NEXT:    [[TMP1:%.*]] = icmp ule i32 [[Z]], [[X:%.*]]
+; CHECK-NEXT:    [[R:%.*]] = zext i1 [[TMP1]] to i32
 ; CHECK-NEXT:    ret i32 [[R]]
 ;
   %z = select i1 %y, i32 -1,i32 -2
@@ -177,7 +178,8 @@ define i32 @udiv_select_neg(i32 %x, i1 %y) nounwind {
 define i32 @udiv_xor_neg(i32 %x, i32 %y) nounwind {
 ; CHECK-LABEL: @udiv_xor_neg(
 ; CHECK-NEXT:    [[Z:%.*]] = or i32 [[Y:%.*]], -2147483648
-; CHECK-NEXT:    [[R:%.*]] = udiv i32 [[X:%.*]], [[Z]]
+; CHECK-NEXT:    [[TMP1:%.*]] = icmp ule i32 [[Z]], [[X:%.*]]
+; CHECK-NEXT:    [[R:%.*]] = zext i1 [[TMP1]] to i32
 ; CHECK-NEXT:    ret i32 [[R]]
 ;
   %z = or i32 2147483648, %y
