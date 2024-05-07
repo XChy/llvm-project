@@ -470,7 +470,7 @@ static Value *getWrittenPtr(Instruction *I) {
     return SI->getPointerOperand();
   if (auto *MSI = dyn_cast<MemSetInst>(I))
     return MSI->getDest();
-  static_assert("Only support store and memset");
+  llvm_unreachable("Only support store and memset");
   return nullptr;
 }
 
@@ -533,20 +533,18 @@ bool MemCpyOptPass::tryMergingIntoMemset(BasicBlock *BB) {
       continue;
     }
 
+    Value *ByteVal = isCandidateToMergeIntoMemset(I, DL);
+    if (!ByteVal) {
+      FlushRelated(I);
+      continue;
+    }
     Value *WrittenPtr = getWrittenPtr(I);
     Value *Obj = getUnderlyingObject(WrittenPtr);
-    Value *ByteVal = isCandidateToMergeIntoMemset(I, DL);
 
     // If this is a store, see if we can merge it in.
-    auto *RangesIter = ObjToRanges.find(Obj);
+    auto RangesIter = ObjToRanges.find(Obj);
     if (RangesIter != ObjToRanges.end()) {
       MemsetRanges &Ranges = RangesIter->second;
-
-      if (!ByteVal) {
-        MadeChanged |= Ranges.flush(MSSAU, I, MemInsertPoint);
-        ObjToRanges.erase(Obj);
-        continue;
-      }
 
       if (isa<UndefValue>(Ranges.ByteVal))
         Ranges.ByteVal = ByteVal;
@@ -567,8 +565,7 @@ bool MemCpyOptPass::tryMergingIntoMemset(BasicBlock *BB) {
       FlushRelated(I);
 
       // Create a new MemsetRanges.
-      if (ByteVal)
-        ObjToRanges.insert({Obj, MemsetRanges(&DL, I, WrittenPtr, ByteVal)});
+      ObjToRanges.insert({Obj, MemsetRanges(&DL, I, WrittenPtr, ByteVal)});
     }
   }
 
