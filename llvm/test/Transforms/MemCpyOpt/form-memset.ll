@@ -130,9 +130,9 @@ define void @test2() nounwind  {
 ; CHECK-NEXT:    [[TMP249:%.*]] = getelementptr [8 x %struct.MV], ptr [[LEFT_MVD]], i32 0, i32 0, i32 1
 ; CHECK-NEXT:    [[UP_MVD252:%.*]] = getelementptr [8 x %struct.MV], ptr [[UP_MVD]], i32 0, i32 0
 ; CHECK-NEXT:    [[LEFT_MVD253:%.*]] = getelementptr [8 x %struct.MV], ptr [[LEFT_MVD]], i32 0, i32 0
-; CHECK-NEXT:    call void @llvm.memset.p0.i64(ptr align 1 [[TMP41]], i8 -1, i64 8, i1 false)
-; CHECK-NEXT:    call void @llvm.memset.p0.i64(ptr align 8 [[TMP141]], i8 0, i64 32, i1 false)
 ; CHECK-NEXT:    call void @llvm.memset.p0.i64(ptr align 8 [[TMP246]], i8 0, i64 32, i1 false)
+; CHECK-NEXT:    call void @llvm.memset.p0.i64(ptr align 8 [[TMP141]], i8 0, i64 32, i1 false)
+; CHECK-NEXT:    call void @llvm.memset.p0.i64(ptr align 1 [[TMP41]], i8 -1, i64 8, i1 false)
 ; CHECK-NEXT:    call void @foo(ptr [[UP_MVD252]], ptr [[LEFT_MVD253]], ptr [[TMP41]]) #[[ATTR0]]
 ; CHECK-NEXT:    ret void
 ;

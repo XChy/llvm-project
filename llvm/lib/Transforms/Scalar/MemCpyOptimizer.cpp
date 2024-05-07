@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Scalar/MemCpyOptimizer.h"
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
@@ -57,7 +58,9 @@
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
+#include <list>
 #include <optional>
+#include <unordered_map>
 
 using namespace llvm;
 
@@ -479,26 +482,34 @@ static Value *getWrittenPtr(Instruction *I) {
 /// memory. If it sees enough consecutive ones, it attempts to merge them
 /// together into a memcpy/memset.
 bool MemCpyOptPass::tryMergingIntoMemset(BasicBlock *BB) {
-  MapVector<Value *, MemsetRanges> ObjToRanges;
+// The following code creates memset intrinsics out of thin air. Don't do
+  // this if the corresponding libfunc is not available.
+  if (!(TLI->has(LibFunc_memset) || EnableMemCpyOptWithoutLibcalls))
+    return false;
+
+  std::list<MemsetRanges> RangesList;
+
+  typedef std::list<MemsetRanges>::iterator Iterator;
+  std::unordered_map<Value *, Iterator> ObjToRanges;
+
   const DataLayout &DL = BB->getModule()->getDataLayout();
   MemoryUseOrDef *MemInsertPoint = nullptr;
   BatchAAResults BAA(*AA);
   bool MadeChanged = false;
 
-  // The following code creates memset intrinsics out of thin air. Don't do
-  // this if the corresponding libfunc is not available.
-  if (!(TLI->has(LibFunc_memset) || EnableMemCpyOptWithoutLibcalls))
-    return false;
-
   auto FlushRelated = [&](Instruction *I) {
-    ObjToRanges.remove_if([&](std::pair<Value *, MemsetRanges> &Entry) {
-      auto &Ranges = Entry.second;
+    for (auto MapIt = ObjToRanges.begin(); MapIt != ObjToRanges.end();) {
+      auto &RangesIt = MapIt->second;
       bool ShouldFlush =
-          isModOrRefSet(BAA.getModRefInfo(I, Ranges.StartPtrLocation));
-      if (ShouldFlush)
-        MadeChanged |= Ranges.flush(MSSAU, I, MemInsertPoint);
-      return ShouldFlush;
-    });
+          isModOrRefSet(BAA.getModRefInfo(I, RangesIt->StartPtrLocation));
+      if (ShouldFlush) {
+        MadeChanged |= RangesIt->flush(MSSAU, I, MemInsertPoint);
+        RangesList.erase(RangesIt);
+        MapIt = ObjToRanges.erase(MapIt);
+      } else {
+        MapIt++;
+      }
+    }
   };
 
   for (BasicBlock::iterator BI = BB->begin(), BE = BB->end(); BI != BE; BI++) {
@@ -521,8 +532,9 @@ bool MemCpyOptPass::tryMergingIntoMemset(BasicBlock *BB) {
     if (I->isVolatile() || I->isAtomic()) {
       // Flush all MemsetRanges if reaching a fence.
       for (auto &[Obj, Ranges] : ObjToRanges)
-        MadeChanged |= Ranges.flush(MSSAU, I, MemInsertPoint);
+        MadeChanged |= Ranges->flush(MSSAU, I, MemInsertPoint);
       ObjToRanges.clear();
+      RangesList.clear();
       continue;
     }
 
@@ -544,33 +556,35 @@ bool MemCpyOptPass::tryMergingIntoMemset(BasicBlock *BB) {
     // If this is a store, see if we can merge it in.
     auto RangesIter = ObjToRanges.find(Obj);
     if (RangesIter != ObjToRanges.end()) {
-      MemsetRanges &Ranges = RangesIter->second;
+      auto Ranges = RangesIter->second;
 
-      if (isa<UndefValue>(Ranges.ByteVal))
-        Ranges.ByteVal = ByteVal;
+      if (isa<UndefValue>(Ranges->ByteVal))
+        Ranges->ByteVal = ByteVal;
 
       std::optional<int64_t> Offset =
-          WrittenPtr->getPointerOffsetFrom(Ranges.StartPtr, DL);
+          WrittenPtr->getPointerOffsetFrom(Ranges->StartPtr, DL);
 
       // For unmergable stores/memsets, we create a new MemsetRanges.
-      if (!Offset || Ranges.ByteVal != ByteVal) {
-        MadeChanged |= Ranges.flush(MSSAU, I, MemInsertPoint);
-        ObjToRanges[Obj] = MemsetRanges(&DL, I, WrittenPtr, ByteVal);
+      if (!Offset || Ranges->ByteVal != ByteVal) {
+        MadeChanged |= Ranges->flush(MSSAU, I, MemInsertPoint);
+        *ObjToRanges[Obj] = MemsetRanges(&DL, I, WrittenPtr, ByteVal);
         continue;
       }
 
-      Ranges.addInst(*Offset, I);
+      Ranges->addInst(*Offset, I);
     } else {
       // Flush all may-aliased MemsetRanges.
       FlushRelated(I);
 
       // Create a new MemsetRanges.
-      ObjToRanges.insert({Obj, MemsetRanges(&DL, I, WrittenPtr, ByteVal)});
+      auto It = RangesList.insert(RangesList.end(),
+                                  MemsetRanges(&DL, I, WrittenPtr, ByteVal));
+      ObjToRanges.insert({Obj, It});
     }
   }
 
   for (auto &[Obj, Ranges] : ObjToRanges)
-    MadeChanged |= Ranges.flush(MSSAU, &BB->back(), MemInsertPoint);
+    MadeChanged |= Ranges->flush(MSSAU, &BB->back(), MemInsertPoint);
 
   return MadeChanged;
 }
