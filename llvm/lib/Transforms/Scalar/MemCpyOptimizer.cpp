@@ -2063,8 +2063,6 @@ bool MemCpyOptPass::iterateOnFunction(Function &F) {
     if (!DT->isReachableFromEntry(&BB))
       continue;
 
-    MadeChange |= tryMergingIntoMemset(&BB);
-
     for (BasicBlock::iterator BI = BB.begin(), BE = BB.end(); BI != BE;) {
       // Avoid invalidating the iterator.
       Instruction *I = &*BI++;
@@ -2095,6 +2093,8 @@ bool MemCpyOptPass::iterateOnFunction(Function &F) {
         MadeChange = true;
       }
     }
+
+    MadeChange |= tryMergingIntoMemset(&BB);
   }
 
   return MadeChange;
