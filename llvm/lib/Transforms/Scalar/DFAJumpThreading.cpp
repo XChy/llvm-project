@@ -120,6 +120,12 @@ static cl::opt<unsigned>
                   cl::desc("Maximum cost accepted for the transformation"),
                   cl::Hidden, cl::init(50));
 
+static cl::opt<double> MaxClonedRate(
+    "dfa-max-cloned-rate",
+    cl::desc(
+        "Maximum cloned instructions rate accepted for the transformation"),
+    cl::Hidden, cl::init(7.5));
+
 namespace {
 
 class SelectInstToUnfold {
@@ -828,6 +834,7 @@ private:
   /// also returns false if it is illegal to clone some required block.
   bool isLegalAndProfitableToTransform() {
     CodeMetrics Metrics;
+    uint64_t NumClonedInst = 0;
     SwitchInst *Switch = SwitchPaths->getSwitchInst();
 
     // Don't thread switch without multiple successors.
@@ -837,7 +844,6 @@ private:
     // Note that DuplicateBlockMap is not being used as intended here. It is
     // just being used to ensure (BB, State) pairs are only counted once.
     DuplicateBlockMap DuplicateMap;
-
     for (ThreadingPath &TPath : SwitchPaths->getThreadingPaths()) {
       PathType PathBBs = TPath.getPath();
       APInt NextState = TPath.getExitValue();
@@ -848,6 +854,7 @@ private:
       BasicBlock *VisitedBB = getClonedBB(BB, NextState, DuplicateMap);
       if (!VisitedBB) {
         Metrics.analyzeBasicBlock(BB, *TTI, EphValues);
+        NumClonedInst += range_size(*BB);
         DuplicateMap[BB].push_back({BB, NextState});
       }
 
@@ -865,6 +872,7 @@ private:
         if (VisitedBB)
           continue;
         Metrics.analyzeBasicBlock(BB, *TTI, EphValues);
+        NumClonedInst += range_size(*BB);
         DuplicateMap[BB].push_back({BB, NextState});
       }
 
@@ -899,6 +907,19 @@ private:
         });
         return false;
       }
+    }
+
+    uint64_t NumOrigInst = 0;
+    for (auto &[BB, _] : DuplicateMap)
+      NumOrigInst += range_size(*BB);
+    if (double(NumClonedInst) / double(NumOrigInst) > MaxClonedRate) {
+      LLVM_DEBUG(
+          dbgs() << "Not jump threading, too much instructions are cloned\n");
+      ORE->emit([&]() {
+        return OptimizationRemarkMissed(DEBUG_TYPE, "NotProfitable", Switch)
+               << "Too much instructions are cloned.";
+      });
+      return false;
     }
 
     InstructionCost DuplicationCost = 0;
