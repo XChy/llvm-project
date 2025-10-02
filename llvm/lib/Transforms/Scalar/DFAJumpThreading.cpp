@@ -972,8 +972,6 @@ private:
 
   /// Transform each threading path to effectively jump thread the DFA.
   void createAllExitPaths() {
-    DomTreeUpdater DTU(*DT, DomTreeUpdater::UpdateStrategy::Eager);
-
     // Move the switch block to the end of the path, since it will be duplicated
     BasicBlock *SwitchBlock = SwitchPaths->getSwitchBlock();
     for (ThreadingPath &TPath : SwitchPaths->getThreadingPaths()) {
@@ -990,15 +988,18 @@ private:
     SmallPtrSet<BasicBlock *, 16> BlocksToClean;
     BlocksToClean.insert_range(successors(SwitchBlock));
 
-    for (ThreadingPath &TPath : SwitchPaths->getThreadingPaths()) {
-      createExitPath(NewDefs, TPath, DuplicateMap, BlocksToClean, &DTU);
-      NumPaths++;
-    }
+    {
+      DomTreeUpdater DTU(*DT, DomTreeUpdater::UpdateStrategy::Lazy);
+      for (ThreadingPath &TPath : SwitchPaths->getThreadingPaths()) {
+        createExitPath(NewDefs, TPath, DuplicateMap, BlocksToClean, &DTU);
+        NumPaths++;
+      }
 
-    // After all paths are cloned, now update the last successor of the cloned
-    // path so it skips over the switch statement
-    for (ThreadingPath &TPath : SwitchPaths->getThreadingPaths())
-      updateLastSuccessor(TPath, DuplicateMap, &DTU);
+      // After all paths are cloned, now update the last successor of the
+      // cloned path so it skips over the switch statement
+      for (ThreadingPath &TPath : SwitchPaths->getThreadingPaths())
+        updateLastSuccessor(TPath, DuplicateMap, &DTU);
+    }
 
     // For each instruction that was cloned and used outside, update its uses
     updateSSA(NewDefs);
