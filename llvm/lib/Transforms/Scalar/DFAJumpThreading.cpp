@@ -820,11 +820,14 @@ struct TransformDFA {
       : SwitchPaths(SwitchPaths), DT(DT), AC(AC), TTI(TTI), ORE(ORE),
         EphValues(EphValues) {}
 
-  void run() {
+  // Return if the transformation is done.
+  bool run() {
     if (isLegalAndProfitableToTransform()) {
       createAllExitPaths();
       NumTransforms++;
+      return true;
     }
+    return false;
   }
 
 private:
@@ -990,14 +993,14 @@ private:
 
     {
       DomTreeUpdater DTU(*DT, DomTreeUpdater::UpdateStrategy::Lazy);
-      for (ThreadingPath &TPath : SwitchPaths->getThreadingPaths()) {
+      for (const ThreadingPath &TPath : SwitchPaths->getThreadingPaths()) {
         createExitPath(NewDefs, TPath, DuplicateMap, BlocksToClean, &DTU);
         NumPaths++;
       }
 
       // After all paths are cloned, now update the last successor of the
       // cloned path so it skips over the switch statement
-      for (ThreadingPath &TPath : SwitchPaths->getThreadingPaths())
+      for (const ThreadingPath &TPath : SwitchPaths->getThreadingPaths())
         updateLastSuccessor(TPath, DuplicateMap, &DTU);
     }
 
@@ -1015,7 +1018,7 @@ private:
   /// To remember the correct destination, we have to duplicate blocks
   /// corresponding to each state. Also update the terminating instruction of
   /// the predecessors, and phis in the successor blocks.
-  void createExitPath(DefMap &NewDefs, ThreadingPath &Path,
+  void createExitPath(DefMap &NewDefs, const ThreadingPath &Path,
                       DuplicateBlockMap &DuplicateMap,
                       SmallPtrSet<BasicBlock *, 16> &BlocksToClean,
                       DomTreeUpdater *DTU) {
@@ -1261,7 +1264,7 @@ private:
   ///
   /// Note that this is an optional step and would have been done in later
   /// optimizations, but it makes the CFG significantly easier to work with.
-  void updateLastSuccessor(ThreadingPath &TPath,
+  void updateLastSuccessor(const ThreadingPath &TPath,
                            DuplicateBlockMap &DuplicateMap,
                            DomTreeUpdater *DTU) {
     APInt NextState = TPath.getExitValue();
@@ -1424,9 +1427,8 @@ bool DFAJumpThreading::run(Function &F) {
 
   for (AllSwitchPaths SwitchPaths : ThreadableLoops) {
     TransformDFA Transform(&SwitchPaths, DT, AC, TTI, ORE, EphValues);
-    Transform.run();
-    MadeChanges = true;
-    LoopInfoBroken = true;
+    if (Transform.run())
+      MadeChanges = LoopInfoBroken = true;
   }
 
 #ifdef EXPENSIVE_CHECKS
