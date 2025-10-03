@@ -910,7 +910,7 @@ private:
     }
 
     uint64_t NumOrigInst = 0;
-    for (auto &[BB, _] : DuplicateMap)
+    for (auto *BB : DuplicateMap.keys())
       NumOrigInst += range_size(*BB);
     if (double(NumClonedInst) / double(NumOrigInst) > MaxClonedRate) {
       LLVM_DEBUG(
