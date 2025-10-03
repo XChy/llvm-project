@@ -158,7 +158,7 @@ private:
   void
   unfoldSelectInstrs(DominatorTree *DT,
                      const SmallVector<SelectInstToUnfold, 4> &SelectInsts) {
-    DomTreeUpdater DTU(DT, DomTreeUpdater::UpdateStrategy::Eager);
+    DomTreeUpdater DTU(DT, DomTreeUpdater::UpdateStrategy::Lazy);
     SmallVector<SelectInstToUnfold, 4> Stack(SelectInsts);
 
     while (!Stack.empty()) {
