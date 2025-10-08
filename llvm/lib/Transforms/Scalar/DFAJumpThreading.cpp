@@ -836,7 +836,7 @@ private:
   // Two states are equivalent if they have the same switch destination.
   // Unify the states in different threading path if the states are equivalent.
   void unifyTPaths() {
-    llvm::SmallDenseMap<BasicBlock *, APInt> DestToState;
+    SmallDenseMap<BasicBlock *, APInt> DestToState;
     for (ThreadingPath &Path : TPaths) {
       APInt NextState = Path.getExitValue();
       BasicBlock *Dest = getNextCaseSuccessor(Switch, NextState);
