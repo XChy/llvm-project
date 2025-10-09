@@ -7757,7 +7757,6 @@ template <> struct DenseMapInfo<const SwitchSuccWrapper *> {
            "Only supporting unconditional branches for now");
     assert(BI->getNumSuccessors() == 1 &&
            "Expected unconditional branches to have one successor");
-    assert(Succ->size() == 1 && "Expected just a single branch in the BB");
 
     // Since we assume the BB is just a single BranchInst with a single
     // successor, we hash as the BB and the incoming Values of its successor
@@ -7772,7 +7771,13 @@ template <> struct DenseMapInfo<const SwitchSuccWrapper *> {
     for (PHINode &Phi : BB->phis())
       PhiValsForBB.emplace_back((*SSW->PhiPredIVs)[&Phi][BB]);
 
-    return hash_combine(BB, hash_combine_range(PhiValsForBB));
+    unsigned InstHash =
+        hash_combine_range(llvm::map_range(*BB, [](Instruction &I) {
+          return hash_combine(I.getOpcode(), I.getNumOperands());
+        }));
+
+    return hash_combine(BB, InstHash, Succ->size(),
+                        hash_combine_range(PhiValsForBB));
   }
   static bool isEqual(const SwitchSuccWrapper *LHS,
                       const SwitchSuccWrapper *RHS) {
@@ -7784,19 +7789,22 @@ template <> struct DenseMapInfo<const SwitchSuccWrapper *> {
     BasicBlock *A = LHS->Dest;
     BasicBlock *B = RHS->Dest;
 
-    // FIXME: we checked that the size of A and B are both 1 in
-    // simplifyDuplicateSwitchArms to make the Case list smaller to
-    // improve performance. If we decide to support BasicBlocks with more
-    // than just a single instruction, we need to check that A.size() ==
-    // B.size() here, and we need to check more than just the BranchInsts
-    // for equality.
-
     BranchInst *ABI = cast<BranchInst>(A->getTerminator());
     BranchInst *BBI = cast<BranchInst>(B->getTerminator());
     assert(ABI->isUnconditional() && BBI->isUnconditional() &&
            "Only supporting unconditional branches for now");
     if (ABI->getSuccessor(0) != BBI->getSuccessor(0))
       return false;
+
+    if (A->size() != B->size())
+      return false;
+
+    auto AInstIt = A->begin();
+    auto BInstIt = B->begin();
+    for (; AInstIt != A->end(); AInstIt++) {
+      if (!areIdenticalUpToCommutativity(&*AInstIt, &*BInstIt))
+        return false;
+    }
 
     // Need to check that PHIs in successor have matching values
     BasicBlock *Succ = ABI->getSuccessor(0);
@@ -7828,9 +7836,7 @@ bool SimplifyCFGOpt::simplifyDuplicateSwitchArms(SwitchInst *SI,
   for (unsigned I = 0; I < SI->getNumSuccessors(); ++I) {
     BasicBlock *BB = SI->getSuccessor(I);
 
-    // FIXME: Support more than just a single BranchInst. One way we could do
-    // this is by taking a hashing approach of all insts in BB.
-    if (BB->size() != 1)
+    if (BB->size() > 16)
       continue;
 
     // FIXME: Relax that the terminator is a BranchInst by checking for equality
