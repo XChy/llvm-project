@@ -7773,7 +7773,8 @@ template <> struct DenseMapInfo<const SwitchSuccWrapper *> {
 
     unsigned InstHash =
         hash_combine_range(llvm::map_range(*BB, [](Instruction &I) {
-          return hash_combine(I.getOpcode(), I.getNumOperands());
+          return hash_combine(I.getOpcode(),
+                              hash_combine_range(I.operand_values()));
         }));
 
     return hash_combine(BB, InstHash, Succ->size(),
@@ -7836,7 +7837,7 @@ bool SimplifyCFGOpt::simplifyDuplicateSwitchArms(SwitchInst *SI,
   for (unsigned I = 0; I < SI->getNumSuccessors(); ++I) {
     BasicBlock *BB = SI->getSuccessor(I);
 
-    if (BB->size() > 16)
+    if (BB->size() > 8)
       continue;
 
     // FIXME: Relax that the terminator is a BranchInst by checking for equality
