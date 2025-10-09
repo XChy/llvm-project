@@ -7802,9 +7802,11 @@ template <> struct DenseMapInfo<const SwitchSuccWrapper *> {
 
     auto AInstIt = A->begin();
     auto BInstIt = B->begin();
-    for (; AInstIt != A->end(); AInstIt++) {
+    while (AInstIt != A->end()) {
       if (!areIdenticalUpToCommutativity(&*AInstIt, &*BInstIt))
         return false;
+      AInstIt++;
+      BInstIt++;
     }
 
     // Need to check that PHIs in successor have matching values
