@@ -7767,9 +7767,8 @@ template <> struct DenseMapInfo<const SwitchSuccWrapper *> {
     // average compile time without having any impact on the worst case compile
     // time.
     BasicBlock *BB = BI->getSuccessor(0);
-    SmallVector<Value *> PhiValsForBB;
-    for (PHINode &Phi : BB->phis())
-      PhiValsForBB.emplace_back((*SSW->PhiPredIVs)[&Phi][BB]);
+    auto PhiValsForBB = llvm::map_range(
+        BB->phis(), [&](PHINode &Phi) { return (*SSW->PhiPredIVs)[&Phi][BB]; });
 
     unsigned InstHash =
         hash_combine_range(llvm::map_range(*BB, [](Instruction &I) {
@@ -7800,12 +7799,20 @@ template <> struct DenseMapInfo<const SwitchSuccWrapper *> {
     if (A->size() != B->size())
       return false;
 
+    // Need to check that PHIs in successor have matching values
+    BasicBlock *Succ = ABI->getSuccessor(0);
+    for (PHINode &Phi : Succ->phis()) {
+      auto &PredIVs = (*LHS->PhiPredIVs)[&Phi];
+      if (PredIVs[A] != PredIVs[B])
+        return false;
+    }
+
     auto AInstIt = A->begin();
     auto BInstIt = B->begin();
     while (AInstIt != A->end()) {
       auto *AInst = &*AInstIt;
       auto *BInst = &*BInstIt;
-      if (!AInst->isIdenticalToWhenDefined(BInst))
+      if (!AInst->isIdenticalTo(BInst))
         return false;
       if (const auto *CB1 = dyn_cast<CallBase>(AInst))
         if (CB1->isConvergent())
@@ -7815,14 +7822,6 @@ template <> struct DenseMapInfo<const SwitchSuccWrapper *> {
           return false;
       AInstIt++;
       BInstIt++;
-    }
-
-    // Need to check that PHIs in successor have matching values
-    BasicBlock *Succ = ABI->getSuccessor(0);
-    for (PHINode &Phi : Succ->phis()) {
-      auto &PredIVs = (*LHS->PhiPredIVs)[&Phi];
-      if (PredIVs[A] != PredIVs[B])
-        return false;
     }
 
     return true;
