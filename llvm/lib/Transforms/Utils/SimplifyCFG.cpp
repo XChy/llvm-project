@@ -7803,8 +7803,16 @@ template <> struct DenseMapInfo<const SwitchSuccWrapper *> {
     auto AInstIt = A->begin();
     auto BInstIt = B->begin();
     while (AInstIt != A->end()) {
-      if (!areIdenticalUpToCommutativity(&*AInstIt, &*BInstIt))
+      auto *AInst = &*AInstIt;
+      auto *BInst = &*BInstIt;
+      if (!AInst->isIdenticalToWhenDefined(BInst))
         return false;
+      if (const auto *CB1 = dyn_cast<CallBase>(AInst))
+        if (CB1->isConvergent())
+          return false;
+      if (const auto *CB2 = dyn_cast<CallBase>(BInst))
+        if (CB2->isConvergent())
+          return false;
       AInstIt++;
       BInstIt++;
     }
@@ -7839,7 +7847,7 @@ bool SimplifyCFGOpt::simplifyDuplicateSwitchArms(SwitchInst *SI,
   for (unsigned I = 0; I < SI->getNumSuccessors(); ++I) {
     BasicBlock *BB = SI->getSuccessor(I);
 
-    if (BB->size() > 8)
+    if (BB->size() > 4)
       continue;
 
     // FIXME: Relax that the terminator is a BranchInst by checking for equality
