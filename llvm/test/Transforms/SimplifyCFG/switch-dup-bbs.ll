@@ -282,6 +282,90 @@ retbb:
   ret i32 %10
 }
 
+define i32 @switch_duplicate_all_arms_with_insts(i32 %cond, i32 %a, i32 %b, i32 %c, ptr %dst) {
+; SIMPLIFY-CFG-LABEL: define i32 @switch_duplicate_all_arms_with_insts(
+; SIMPLIFY-CFG-SAME: i32 [[COND:%.*]], i32 [[A:%.*]], i32 [[B:%.*]], i32 [[C:%.*]], ptr [[DST:%.*]]) {
+; SIMPLIFY-CFG-NEXT:  [[ENTRY:.*]]:
+; SIMPLIFY-CFG-NEXT:    switch i32 [[COND]], label %[[RETBB:.*]] [
+; SIMPLIFY-CFG-NEXT:      i32 0, label %[[CASE0:.*]]
+; SIMPLIFY-CFG-NEXT:      i32 1, label %[[CASE0]]
+; SIMPLIFY-CFG-NEXT:      i32 2, label %[[CASE0]]
+; SIMPLIFY-CFG-NEXT:    ]
+; SIMPLIFY-CFG:       [[CASE0]]:
+; SIMPLIFY-CFG-NEXT:    store i32 [[A]], ptr [[DST]], align 4
+; SIMPLIFY-CFG-NEXT:    br label %[[RETBB]]
+; SIMPLIFY-CFG:       [[RETBB]]:
+; SIMPLIFY-CFG-NEXT:    [[TMP0:%.*]] = phi i32 [ [[A]], %[[ENTRY]] ], [ [[C]], %[[CASE0]] ]
+; SIMPLIFY-CFG-NEXT:    ret i32 [[TMP0]]
+;
+entry:
+  switch i32 %cond, label %retbb [
+  i32 0, label %case0
+  i32 1, label %case1
+  i32 2, label %case2
+  ]
+
+case0:
+  store i32 %a, ptr %dst
+  br label %retbb
+
+case1:
+  store i32 %a, ptr %dst
+  br label %retbb
+
+case2:
+  store i32 %a, ptr %dst
+  br label %retbb
+
+retbb:
+  %10 = phi i32 [ %a, %entry ], [ %c, %case0 ], [ %c, %case1 ], [ %c, %case2 ]
+  ret i32 %10
+}
+
+define i32 @switch_duplicate_arms_with_insts_volatile(i32 %cond, i32 %a, i32 %b, i32 %c, ptr %dst) {
+; SIMPLIFY-CFG-LABEL: define i32 @switch_duplicate_arms_with_insts_volatile(
+; SIMPLIFY-CFG-SAME: i32 [[COND:%.*]], i32 [[A:%.*]], i32 [[B:%.*]], i32 [[C:%.*]], ptr [[DST:%.*]]) {
+; SIMPLIFY-CFG-NEXT:  [[ENTRY:.*]]:
+; SIMPLIFY-CFG-NEXT:    switch i32 [[COND]], label %[[RETBB:.*]] [
+; SIMPLIFY-CFG-NEXT:      i32 0, label %[[CASE0:.*]]
+; SIMPLIFY-CFG-NEXT:      i32 1, label %[[CASE1:.*]]
+; SIMPLIFY-CFG-NEXT:      i32 2, label %[[CASE2:.*]]
+; SIMPLIFY-CFG-NEXT:    ]
+; SIMPLIFY-CFG:       [[CASE0]]:
+; SIMPLIFY-CFG-NEXT:    br label %[[RETBB]]
+; SIMPLIFY-CFG:       [[CASE1]]:
+; SIMPLIFY-CFG-NEXT:    store volatile i32 [[A]], ptr [[DST]], align 4
+; SIMPLIFY-CFG-NEXT:    br label %[[RETBB]]
+; SIMPLIFY-CFG:       [[CASE2]]:
+; SIMPLIFY-CFG-NEXT:    store i32 [[A]], ptr [[DST]], align 4
+; SIMPLIFY-CFG-NEXT:    br label %[[RETBB]]
+; SIMPLIFY-CFG:       [[RETBB]]:
+; SIMPLIFY-CFG-NEXT:    [[TMP0:%.*]] = phi i32 [ [[A]], %[[ENTRY]] ], [ [[B]], %[[CASE0]] ], [ [[C]], %[[CASE1]] ], [ [[C]], %[[CASE2]] ]
+; SIMPLIFY-CFG-NEXT:    ret i32 [[TMP0]]
+;
+entry:
+  switch i32 %cond, label %retbb [
+  i32 0, label %case0
+  i32 1, label %case1
+  i32 2, label %case2
+  ]
+
+case0:
+  br label %retbb
+
+case1:
+  store volatile i32 %a, ptr %dst
+  br label %retbb
+
+case2:
+  store i32 %a, ptr %dst
+  br label %retbb
+
+retbb:
+  %10 = phi i32 [ %a, %entry ], [ %b, %case0 ], [ %c, %case1 ], [ %c, %case2 ]
+  ret i32 %10
+}
+
 define i32 @switch_duplicate_arms_with_multi_insts(i32 %cond, i32 %a, i32 %b, i32 %c, ptr %dst) {
 ; SIMPLIFY-CFG-LABEL: define i32 @switch_duplicate_arms_with_multi_insts(
 ; SIMPLIFY-CFG-SAME: i32 [[COND:%.*]], i32 [[A:%.*]], i32 [[B:%.*]], i32 [[C:%.*]], ptr [[DST:%.*]]) {

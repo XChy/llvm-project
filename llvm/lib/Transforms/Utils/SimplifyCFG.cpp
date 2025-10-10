@@ -7776,8 +7776,7 @@ template <> struct DenseMapInfo<const SwitchSuccWrapper *> {
                               hash_combine_range(I.operand_values()));
         }));
 
-    return hash_combine(BB, InstHash, Succ->size(),
-                        hash_combine_range(PhiValsForBB));
+    return hash_combine(InstHash, hash_combine_range(PhiValsForBB));
   }
   static bool isEqual(const SwitchSuccWrapper *LHS,
                       const SwitchSuccWrapper *RHS) {
@@ -7793,8 +7792,6 @@ template <> struct DenseMapInfo<const SwitchSuccWrapper *> {
     BranchInst *BBI = cast<BranchInst>(B->getTerminator());
     assert(ABI->isUnconditional() && BBI->isUnconditional() &&
            "Only supporting unconditional branches for now");
-    if (ABI->getSuccessor(0) != BBI->getSuccessor(0))
-      return false;
 
     if (A->size() != B->size())
       return false;
@@ -7807,9 +7804,9 @@ template <> struct DenseMapInfo<const SwitchSuccWrapper *> {
         return false;
     }
 
-    auto AInstIt = A->begin();
-    auto BInstIt = B->begin();
-    while (AInstIt != A->end()) {
+    auto AInstIt = A->rbegin();
+    auto BInstIt = B->rbegin();
+    while (AInstIt != A->rend()) {
       auto *AInst = &*AInstIt;
       auto *BInst = &*BInstIt;
       if (!AInst->isIdenticalTo(BInst))

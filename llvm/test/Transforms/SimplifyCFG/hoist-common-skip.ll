@@ -278,7 +278,7 @@ define void @f3_switch(i64 %i, ptr nocapture noundef %d, ptr nocapture noundef r
 ; CHECK-NEXT:    [[U:%.*]] = add i16 [[ADD_0]], [[TMP1]]
 ; CHECK-NEXT:    switch i64 [[I:%.*]], label [[BB0:%.*]] [
 ; CHECK-NEXT:      i64 1, label [[BB1:%.*]]
-; CHECK-NEXT:      i64 2, label [[BB2:%.*]]
+; CHECK-NEXT:      i64 2, label [[BB1]]
 ; CHECK-NEXT:    ]
 ; CHECK:       bb0:
 ; CHECK-NEXT:    call void @no_side_effects0()
@@ -286,12 +286,8 @@ define void @f3_switch(i64 %i, ptr nocapture noundef %d, ptr nocapture noundef r
 ; CHECK:       bb1:
 ; CHECK-NEXT:    call void @no_side_effects1()
 ; CHECK-NEXT:    br label [[END]]
-; CHECK:       bb2:
-; CHECK-NEXT:    call void @no_side_effects1()
-; CHECK-NEXT:    br label [[END]]
 ; CHECK:       end:
-; CHECK-NEXT:    [[UV:%.*]] = phi i16 [ [[U]], [[BB0]] ], [ [[U]], [[BB1]] ], [ [[U]], [[BB2]] ]
-; CHECK-NEXT:    store i16 [[UV]], ptr [[D:%.*]], align 2
+; CHECK-NEXT:    store i16 [[U]], ptr [[D:%.*]], align 2
 ; CHECK-NEXT:    ret void
 ;
 entry:
@@ -381,7 +377,7 @@ define void @f4_switch(i64 %i, ptr nocapture noundef %d, ptr nocapture noundef r
 ; CHECK-NEXT:    [[U:%.*]] = add i16 [[DIV_0]], [[TMP0]]
 ; CHECK-NEXT:    switch i64 [[I:%.*]], label [[BB0:%.*]] [
 ; CHECK-NEXT:      i64 1, label [[BB1:%.*]]
-; CHECK-NEXT:      i64 2, label [[BB2:%.*]]
+; CHECK-NEXT:      i64 2, label [[BB1]]
 ; CHECK-NEXT:    ]
 ; CHECK:       bb0:
 ; CHECK-NEXT:    call void @side_effects0()
@@ -389,12 +385,8 @@ define void @f4_switch(i64 %i, ptr nocapture noundef %d, ptr nocapture noundef r
 ; CHECK:       bb1:
 ; CHECK-NEXT:    call void @side_effects1()
 ; CHECK-NEXT:    br label [[IF_END]]
-; CHECK:       bb2:
-; CHECK-NEXT:    call void @side_effects1()
-; CHECK-NEXT:    br label [[IF_END]]
 ; CHECK:       if.end:
-; CHECK-NEXT:    [[UV:%.*]] = phi i16 [ [[U]], [[BB0]] ], [ [[U]], [[BB1]] ], [ [[U]], [[BB2]] ]
-; CHECK-NEXT:    store i16 [[UV]], ptr [[D:%.*]], align 2
+; CHECK-NEXT:    store i16 [[U]], ptr [[D:%.*]], align 2
 ; CHECK-NEXT:    ret void
 ;
 entry:
@@ -584,7 +576,7 @@ define void @f6_switch(i64 %i, ptr nocapture noundef %d, ptr nocapture noundef r
 ; CHECK-NEXT:    [[U:%.*]] = add i16 [[DIV_0]], [[TMP0]]
 ; CHECK-NEXT:    switch i64 [[I:%.*]], label [[BB0:%.*]] [
 ; CHECK-NEXT:      i64 1, label [[BB1:%.*]]
-; CHECK-NEXT:      i64 2, label [[BB2:%.*]]
+; CHECK-NEXT:      i64 2, label [[BB1]]
 ; CHECK-NEXT:    ]
 ; CHECK:       bb0:
 ; CHECK-NEXT:    call void @no_side_effects0()
@@ -592,12 +584,8 @@ define void @f6_switch(i64 %i, ptr nocapture noundef %d, ptr nocapture noundef r
 ; CHECK:       bb1:
 ; CHECK-NEXT:    call void @no_side_effects1()
 ; CHECK-NEXT:    br label [[END]]
-; CHECK:       bb2:
-; CHECK-NEXT:    call void @no_side_effects1()
-; CHECK-NEXT:    br label [[END]]
 ; CHECK:       end:
-; CHECK-NEXT:    [[UV:%.*]] = phi i16 [ [[U]], [[BB0]] ], [ [[U]], [[BB1]] ], [ [[U]], [[BB2]] ]
-; CHECK-NEXT:    store i16 [[UV]], ptr [[D:%.*]], align 2
+; CHECK-NEXT:    store i16 [[U]], ptr [[D:%.*]], align 2
 ; CHECK-NEXT:    ret void
 ;
 entry:

@@ -322,14 +322,9 @@ define void @ucmp_gt_not_same_succ(i32 %a, i32 %b) {
 ; CHECK-LABEL: define void @ucmp_gt_not_same_succ(
 ; CHECK-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
 ; CHECK-NEXT:    [[RES:%.*]] = call i8 @llvm.ucmp.i8.i32(i32 [[A]], i32 [[B]])
-; CHECK-NEXT:    switch i8 [[RES]], label %[[BB1:.*]] [
-; CHECK-NEXT:      i8 -1, label %[[BB2:.*]]
-; CHECK-NEXT:      i8 0, label %[[BB3:.*]]
-; CHECK-NEXT:    ]
+; CHECK-NEXT:    [[COND:%.*]] = icmp eq i8 [[RES]], -1
+; CHECK-NEXT:    br i1 [[COND]], label %[[BB2:.*]], label %[[BB1:.*]]
 ; CHECK:       [[BB1]]:
-; CHECK-NEXT:    call void @foo()
-; CHECK-NEXT:    br label %[[BB2]]
-; CHECK:       [[BB3]]:
 ; CHECK-NEXT:    call void @foo()
 ; CHECK-NEXT:    br label %[[BB2]]
 ; CHECK:       [[BB2]]:
@@ -573,22 +568,13 @@ unreachable:
 define void @ucmp_gt_unreachable_no_two_equal_cases(i32 %a, i32 %b) {
 ; CHECK-LABEL: define void @ucmp_gt_unreachable_no_two_equal_cases(
 ; CHECK-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
-; CHECK-NEXT:    [[RES:%.*]] = call i8 @llvm.ucmp.i8.i32(i32 [[A]], i32 [[B]])
-; CHECK-NEXT:    switch i8 [[RES]], label %[[UNREACHABLE:.*]] [
-; CHECK-NEXT:      i8 -1, label %[[BB3:.*]]
-; CHECK-NEXT:      i8 0, label %[[BB2:.*]]
-; CHECK-NEXT:      i8 1, label %[[BB1:.*]]
-; CHECK-NEXT:    ]
-; CHECK:       [[BB1]]:
-; CHECK-NEXT:    call void @foo()
-; CHECK-NEXT:    br label %[[BB2]]
+; CHECK-NEXT:    [[TMP1:%.*]] = icmp eq i32 [[A]], [[B]]
+; CHECK-NEXT:    br i1 [[TMP1]], label %[[BB2:.*]], label %[[BB3:.*]]
 ; CHECK:       [[BB3]]:
 ; CHECK-NEXT:    call void @foo()
 ; CHECK-NEXT:    br label %[[BB2]]
 ; CHECK:       [[BB2]]:
 ; CHECK-NEXT:    ret void
-; CHECK:       [[UNREACHABLE]]:
-; CHECK-NEXT:    unreachable
 ;
   %res = call i8 @llvm.ucmp.i8.i32(i32 %a, i32 %b)
   switch i8 %res, label %unreachable [
@@ -637,15 +623,8 @@ unreachable:
 define void @ucmp_gt_unreachable_default_not_unreachable(i32 %a, i32 %b) {
 ; CHECK-LABEL: define void @ucmp_gt_unreachable_default_not_unreachable(
 ; CHECK-SAME: i32 [[A:%.*]], i32 [[B:%.*]]) {
-; CHECK-NEXT:    [[RES:%.*]] = call i8 @llvm.ucmp.i8.i32(i32 [[A]], i32 [[B]])
-; CHECK-NEXT:    switch i8 [[RES]], label %[[NOT_UNREACHABLE:.*]] [
-; CHECK-NEXT:      i8 -1, label %[[BB2:.*]]
-; CHECK-NEXT:      i8 0, label %[[BB2]]
-; CHECK-NEXT:      i8 1, label %[[BB1:.*]]
-; CHECK-NEXT:    ]
-; CHECK:       [[BB1]]:
-; CHECK-NEXT:    call void @foo()
-; CHECK-NEXT:    br label %[[BB2]]
+; CHECK-NEXT:    [[TMP1:%.*]] = icmp ugt i32 [[A]], [[B]]
+; CHECK-NEXT:    br i1 [[TMP1]], label %[[NOT_UNREACHABLE:.*]], label %[[BB2:.*]]
 ; CHECK:       [[BB2]]:
 ; CHECK-NEXT:    ret void
 ; CHECK:       [[NOT_UNREACHABLE]]:
