@@ -7811,11 +7811,13 @@ template <> struct DenseMapInfo<const SwitchSuccWrapper *> {
       auto *BInst = &*BInstIt;
       if (!AInst->isIdenticalTo(BInst))
         return false;
-      if (const auto *CB1 = dyn_cast<CallBase>(AInst))
-        if (CB1->isConvergent())
+      // Don't CSE convergent calls in different basic blocks, because they
+      // implicitly depend on the set of threads that is currently executing.
+      if (const auto *CB = dyn_cast<CallBase>(AInst))
+        if (CB->isConvergent())
           return false;
-      if (const auto *CB2 = dyn_cast<CallBase>(BInst))
-        if (CB2->isConvergent())
+      if (const auto *CB = dyn_cast<CallBase>(BInst))
+        if (CB->isConvergent())
           return false;
       AInstIt++;
       BInstIt++;
@@ -7872,10 +7874,12 @@ bool SimplifyCFGOpt::simplifyDuplicateSwitchArms(SwitchInst *SI,
     // Add the successor only if not previously visited.
     Cases.emplace_back(SwitchSuccWrapper{BB, &PhiPredIVs});
     BBToSuccessorIndexes[BB].emplace_back(I);
-
-    if (Cases.size() > 100)
-      break;
   }
+  llvm::stable_sort(Cases,
+                    [](const SwitchSuccWrapper &A, const SwitchSuccWrapper &B) {
+                      return A.Dest->size() < B.Dest->size();
+                    });
+  Cases.resize(std::min(Cases.size(), (size_t)100));
 
   // Precompute a data structure to improve performance of isEqual for
   // SwitchSuccWrapper.

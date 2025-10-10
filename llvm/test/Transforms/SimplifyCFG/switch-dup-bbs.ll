@@ -322,6 +322,104 @@ retbb:
   ret i32 %10
 }
 
+define i32 @switch_duplicate_with_insts_different_op(i32 %cond, i32 %a, i32 %b, i32 %c, ptr %dst) {
+; SIMPLIFY-CFG-LABEL: define i32 @switch_duplicate_with_insts_different_op(
+; SIMPLIFY-CFG-SAME: i32 [[COND:%.*]], i32 [[A:%.*]], i32 [[B:%.*]], i32 [[C:%.*]], ptr [[DST:%.*]]) {
+; SIMPLIFY-CFG-NEXT:  [[ENTRY:.*]]:
+; SIMPLIFY-CFG-NEXT:    switch i32 [[COND]], label %[[RETBB:.*]] [
+; SIMPLIFY-CFG-NEXT:      i32 0, label %[[CASE0:.*]]
+; SIMPLIFY-CFG-NEXT:      i32 1, label %[[CASE1:.*]]
+; SIMPLIFY-CFG-NEXT:      i32 2, label %[[CASE2:.*]]
+; SIMPLIFY-CFG-NEXT:    ]
+; SIMPLIFY-CFG:       [[CASE0]]:
+; SIMPLIFY-CFG-NEXT:    store i32 [[A]], ptr [[DST]], align 4
+; SIMPLIFY-CFG-NEXT:    br label %[[RETBB]]
+; SIMPLIFY-CFG:       [[CASE1]]:
+; SIMPLIFY-CFG-NEXT:    store i32 [[B]], ptr [[DST]], align 4
+; SIMPLIFY-CFG-NEXT:    br label %[[RETBB]]
+; SIMPLIFY-CFG:       [[CASE2]]:
+; SIMPLIFY-CFG-NEXT:    store i32 [[C]], ptr [[DST]], align 4
+; SIMPLIFY-CFG-NEXT:    br label %[[RETBB]]
+; SIMPLIFY-CFG:       [[RETBB]]:
+; SIMPLIFY-CFG-NEXT:    [[TMP0:%.*]] = phi i32 [ [[A]], %[[ENTRY]] ], [ [[C]], %[[CASE0]] ], [ [[C]], %[[CASE1]] ], [ [[C]], %[[CASE2]] ]
+; SIMPLIFY-CFG-NEXT:    ret i32 [[TMP0]]
+;
+entry:
+  switch i32 %cond, label %retbb [
+  i32 0, label %case0
+  i32 1, label %case1
+  i32 2, label %case2
+  ]
+
+case0:
+  store i32 %a, ptr %dst
+  br label %retbb
+
+case1:
+  store i32 %b, ptr %dst
+  br label %retbb
+
+case2:
+  store i32 %c, ptr %dst
+  br label %retbb
+
+retbb:
+  %10 = phi i32 [ %a, %entry ], [ %c, %case0 ], [ %c, %case1 ], [ %c, %case2 ]
+  ret i32 %10
+}
+
+define i32 @switch_duplicate_cse(i32 %cond, i32 %a, i32 %b, i32 %c, ptr %dst) {
+; SIMPLIFY-CFG-LABEL: define i32 @switch_duplicate_cse(
+; SIMPLIFY-CFG-SAME: i32 [[COND:%.*]], i32 [[A:%.*]], i32 [[B:%.*]], i32 [[C:%.*]], ptr [[DST:%.*]]) {
+; SIMPLIFY-CFG-NEXT:  [[ENTRY:.*]]:
+; SIMPLIFY-CFG-NEXT:    switch i32 [[COND]], label %[[RETBB:.*]] [
+; SIMPLIFY-CFG-NEXT:      i32 0, label %[[CASE0:.*]]
+; SIMPLIFY-CFG-NEXT:      i32 1, label %[[CASE1:.*]]
+; SIMPLIFY-CFG-NEXT:      i32 2, label %[[CASE2:.*]]
+; SIMPLIFY-CFG-NEXT:    ]
+; SIMPLIFY-CFG:       [[CASE0]]:
+; SIMPLIFY-CFG-NEXT:    [[ADD1:%.*]] = add i32 [[A]], [[B]]
+; SIMPLIFY-CFG-NEXT:    store i32 [[ADD1]], ptr [[DST]], align 4
+; SIMPLIFY-CFG-NEXT:    br label %[[RETBB]]
+; SIMPLIFY-CFG:       [[CASE1]]:
+; SIMPLIFY-CFG-NEXT:    [[ADD2:%.*]] = add i32 [[A]], [[B]]
+; SIMPLIFY-CFG-NEXT:    store i32 [[ADD2]], ptr [[DST]], align 4
+; SIMPLIFY-CFG-NEXT:    br label %[[RETBB]]
+; SIMPLIFY-CFG:       [[CASE2]]:
+; SIMPLIFY-CFG-NEXT:    [[ADD3:%.*]] = add i32 [[A]], [[B]]
+; SIMPLIFY-CFG-NEXT:    store i32 [[ADD3]], ptr [[DST]], align 4
+; SIMPLIFY-CFG-NEXT:    br label %[[RETBB]]
+; SIMPLIFY-CFG:       [[RETBB]]:
+; SIMPLIFY-CFG-NEXT:    [[TMP0:%.*]] = phi i32 [ [[A]], %[[ENTRY]] ], [ [[C]], %[[CASE0]] ], [ [[C]], %[[CASE1]] ], [ [[C]], %[[CASE2]] ]
+; SIMPLIFY-CFG-NEXT:    ret i32 [[TMP0]]
+;
+entry:
+  switch i32 %cond, label %retbb [
+  i32 0, label %case0
+  i32 1, label %case1
+  i32 2, label %case2
+  ]
+
+case0:
+  %add1 = add i32 %a, %b
+  store i32 %add1, ptr %dst
+  br label %retbb
+
+case1:
+  %add2 = add i32 %a, %b
+  store i32 %add2, ptr %dst
+  br label %retbb
+
+case2:
+  %add3 = add i32 %a, %b
+  store i32 %add3, ptr %dst
+  br label %retbb
+
+retbb:
+  %10 = phi i32 [ %a, %entry ], [ %c, %case0 ], [ %c, %case1 ], [ %c, %case2 ]
+  ret i32 %10
+}
+
 define i32 @switch_duplicate_arms_with_insts_volatile(i32 %cond, i32 %a, i32 %b, i32 %c, ptr %dst) {
 ; SIMPLIFY-CFG-LABEL: define i32 @switch_duplicate_arms_with_insts_volatile(
 ; SIMPLIFY-CFG-SAME: i32 [[COND:%.*]], i32 [[A:%.*]], i32 [[B:%.*]], i32 [[C:%.*]], ptr [[DST:%.*]]) {
