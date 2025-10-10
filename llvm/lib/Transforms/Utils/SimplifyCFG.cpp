@@ -7872,6 +7872,9 @@ bool SimplifyCFGOpt::simplifyDuplicateSwitchArms(SwitchInst *SI,
     // Add the successor only if not previously visited.
     Cases.emplace_back(SwitchSuccWrapper{BB, &PhiPredIVs});
     BBToSuccessorIndexes[BB].emplace_back(I);
+
+    if (Cases.size() > 100)
+      break;
   }
 
   // Precompute a data structure to improve performance of isEqual for
