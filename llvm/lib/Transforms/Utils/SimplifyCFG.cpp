@@ -7879,7 +7879,7 @@ bool SimplifyCFGOpt::simplifyDuplicateSwitchArms(SwitchInst *SI,
                     [](const SwitchSuccWrapper &A, const SwitchSuccWrapper &B) {
                       return A.Dest->size() < B.Dest->size();
                     });
-  Cases.resize(std::min(Cases.size(), (size_t)100));
+  Cases.resize(std::min(Cases.size(), (size_t)75));
 
   // Precompute a data structure to improve performance of isEqual for
   // SwitchSuccWrapper.
