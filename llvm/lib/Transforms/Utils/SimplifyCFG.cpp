@@ -7845,7 +7845,7 @@ bool SimplifyCFGOpt::simplifyDuplicateSwitchArms(SwitchInst *SI,
   for (unsigned I = 0; I < SI->getNumSuccessors(); ++I) {
     BasicBlock *BB = SI->getSuccessor(I);
 
-    if (BB->size() > 4)
+    if (BB->size() > 2)
       continue;
 
     // FIXME: Relax that the terminator is a BranchInst by checking for equality
