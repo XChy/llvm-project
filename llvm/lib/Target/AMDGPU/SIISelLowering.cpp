@@ -9617,14 +9617,48 @@ SDValue SITargetLowering::lowerSBuffer(EVT VT, SDLoc DL, SDValue Rsrc,
 }
 
 SDValue SITargetLowering::lowerWaveID(SelectionDAG &DAG, SDValue Op) const {
-  // With architected SGPRs, waveIDinGroup is in TTMP8[29:25].
-  if (!Subtarget->hasArchitectedSGPRs())
-    return {};
   SDLoc SL(Op);
   MVT VT = MVT::i32;
-  SDValue TTMP8 = DAG.getCopyFromReg(DAG.getEntryNode(), SL, AMDGPU::TTMP8, VT);
-  return DAG.getNode(AMDGPUISD::BFE_U32, SL, VT, TTMP8,
-                     DAG.getConstant(25, SL, VT), DAG.getConstant(5, SL, VT));
+  // With architected SGPRs, waveIDinGroup is in TTMP8[29:25].
+  if (Subtarget->hasArchitectedSGPRs()) {
+    SDValue TTMP8 =
+        DAG.getCopyFromReg(DAG.getEntryNode(), SL, AMDGPU::TTMP8, VT);
+    return DAG.getNode(AMDGPUISD::BFE_U32, SL, VT, TTMP8,
+                       DAG.getConstant(25, SL, VT), DAG.getConstant(5, SL, VT));
+  }
+
+  // GFX942/GFX950 has wave_id_in_workgroup in ttmp11[5:0]
+  if (Subtarget->hasGFX940Insts()) {
+    SDValue TTMP11 =
+        DAG.getCopyFromReg(DAG.getEntryNode(), SL, AMDGPU::TTMP11, VT);
+    return DAG.getNode(AMDGPUISD::BFE_U32, SL, VT, TTMP11,
+                       DAG.getConstant(0, SL, VT), DAG.getConstant(6, SL, VT));
+  }
+
+  // General case:
+  // workitem.id.linear = workitem.id.x + workgroup.size.x * (workitem.id.y +
+  // workgroup.size.y * workitem.id.z)
+  // waveid = workitem.id.linear / wavesize
+  auto getIntrinsic = [&](uint64_t InstrinsicID) {
+    return DAG.getNode(ISD::INTRINSIC_WO_CHAIN, SL, VT,
+                       DAG.getTargetConstant(InstrinsicID, SL, MVT::i32));
+  };
+  // FIXME: These intrinsics are invalid on some CCs like amdgpu_gfx, producing
+  // poison values for now.
+  auto IdX = getIntrinsic(Intrinsic::amdgcn_workitem_id_x);
+  auto IdY = getIntrinsic(Intrinsic::amdgcn_workitem_id_y);
+  auto IdZ = getIntrinsic(Intrinsic::amdgcn_workitem_id_z);
+  auto DimX = getIntrinsic(Intrinsic::amdgcn_workgroup_id_x);
+  auto DimY = getIntrinsic(Intrinsic::amdgcn_workgroup_id_y);
+  // LinearYZ = workitem.id.y + workgroup.size.y * workitem.id.z
+  auto LinearYZ = DAG.getNode(ISD::ADD, SL, VT, IdY,
+                              DAG.getNode(ISD::MUL, SL, VT, DimY, IdZ));
+  // LinearXYZ = workitem.id.x + workgroup.size.x * LinearYZ
+  auto LinearXYZ = DAG.getNode(ISD::ADD, SL, VT, IdX,
+                               DAG.getNode(ISD::MUL, SL, VT, DimX, LinearYZ));
+  // Wave ID = LinearXYZ / WaveSize
+  auto WaveSize = DAG.getConstant(Subtarget->getWavefrontSize(), SL, VT);
+  return DAG.getNode(ISD::UDIV, SL, VT, LinearXYZ, WaveSize);
 }
 
 SDValue SITargetLowering::lowerConstHwRegRead(SelectionDAG &DAG, SDValue Op,
