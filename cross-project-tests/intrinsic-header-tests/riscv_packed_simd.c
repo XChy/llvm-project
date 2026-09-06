@@ -4175,21 +4175,15 @@ int64_t test_mulsu_w11_i64(int32x2_t a, uint32x2_t b) {
 
 // CHECK-LABEL: test_pget_i8x4_i8:
 // CHECK:       srai
-int8_t test_pget_i8x4_i8(int8x4_t v) {
-  return __riscv_pget_i8x4_i8(v, 3);
-}
+int8_t test_pget_i8x4_i8(int8x4_t v) { return __riscv_pget_i8x4_i8(v, 3); }
 
 // CHECK-LABEL: test_pget_i8x4_i8_idx0:
 // CHECK:       sext.b
-int8_t test_pget_i8x4_i8_idx0(int8x4_t v) {
-  return __riscv_pget_i8x4_i8(v, 0);
-}
+int8_t test_pget_i8x4_i8_idx0(int8x4_t v) { return __riscv_pget_i8x4_i8(v, 0); }
 
 // CHECK-LABEL: test_pget_u8x4_u8:
 // CHECK:       srli
-uint8_t test_pget_u8x4_u8(uint8x4_t v) {
-  return __riscv_pget_u8x4_u8(v, 3);
-}
+uint8_t test_pget_u8x4_u8(uint8x4_t v) { return __riscv_pget_u8x4_u8(v, 3); }
 
 // CHECK-LABEL: test_pget_u8x4_u8_idx0:
 // CHECK:       zext.b
@@ -4223,15 +4217,11 @@ uint16_t test_pget_u16x2_u16_idx0(uint16x2_t v) {
 
 // CHECK-LABEL: test_pget_i8x8_i8:
 // CHECK:       srai
-int8_t test_pget_i8x8_i8(int8x8_t v) {
-  return __riscv_pget_i8x8_i8(v, 7);
-}
+int8_t test_pget_i8x8_i8(int8x8_t v) { return __riscv_pget_i8x8_i8(v, 7); }
 
 // CHECK-LABEL: test_pget_u8x8_u8:
 // CHECK:       srli
-uint8_t test_pget_u8x8_u8(uint8x8_t v) {
-  return __riscv_pget_u8x8_u8(v, 7);
-}
+uint8_t test_pget_u8x8_u8(uint8x8_t v) { return __riscv_pget_u8x8_u8(v, 7); }
 
 // CHECK-LABEL: test_pget_i16x4_i16:
 // CHECK:       srai
